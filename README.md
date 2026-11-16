@@ -1,179 +1,175 @@
-<div align="center">
+<a href="https://askrueger.github.io/webportfolio/">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/header-dark.svg">
+    <img src="assets/header-light.svg" alt="Alonso Amador Sánchez · Desarrollador Junior · Android Kotlin · Backend Java · Mérida, disponible ya" width="100%">
+  </picture>
+</a>
+
+<p align="center">
+  <a href="https://askrueger.github.io/webportfolio/"><b>Portfolio</b></a> &nbsp;·&nbsp;
+  <a href="https://askrueger.github.io/webportfolio/cv/alonso-amador-sanchez-cv.pdf"><b>CV en PDF</b></a> &nbsp;·&nbsp;
+  <a href="https://www.linkedin.com/in/alonso-amador/"><b>LinkedIn</b></a> &nbsp;·&nbsp;
+  <a href="mailto:alonsoamadorsanchez@gmail.com"><b>Email</b></a>
+</p>
+
+<br>
+
+Construyo **apps Android con Kotlin y Jetpack Compose** y **backends con Java y Spring Boot**, desde la API hasta la app en Google Play, con tests y documentación que dicen la verdad. Antes estudié Turismo y trabajé de cara al público: sé escuchar qué necesita la persona al otro lado.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/stats-dark.svg">
+  <img src="assets/stats-light.svg" alt="5 apps en prueba cerrada en Google Play · 3 APIs REST con PostgreSQL · más de 200 tests automatizados · incorporación inmediata" width="100%">
+</picture>
+
+<br><br>
+
+## Proyectos
+
+Cinco apps en prueba cerrada en Google Play. Pulsa una tarjeta para ver capturas, decisiones técnicas y código en el portfolio.
+
+<a href="https://askrueger.github.io/webportfolio/proyectos/explorersaga/">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/project-explorersaga-dark.svg">
+    <img src="assets/project-explorersaga-light.svg" alt="ExplorerSaga Extremadura, v2, Kotlin y Python: toda Extremadura en el bolsillo, también sin cobertura. Más de 5.700 lugares, datos reproducibles, paquetes con sha256, mapa y búsqueda offline. 103 tests." width="100%">
+  </picture>
+</a>
+
+<a href="https://askrueger.github.io/webportfolio/proyectos/3d-cost-manager/"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/project-3d-cost-manager-dark.svg"><img src="assets/project-3d-cost-manager-light.svg" alt="3D Cost Manager, v1.0.0, Kotlin: el coste real de cada impresión 3D y a cuánto venderla en cada canal" width="49%"></picture></a> <a href="https://askrueger.github.io/webportfolio/proyectos/training-arc/"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/project-training-arc-dark.svg"><img src="assets/project-training-arc-light.svg" alt="Training Arc, v1.0.0, Kotlin: tu registro de entrenamientos convertido en un RPG" width="49%"></picture></a>
+
+<a href="https://askrueger.github.io/webportfolio/proyectos/animewatchlist/"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/project-animewatchlist-dark.svg"><img src="assets/project-animewatchlist-light.svg" alt="AnimeWatchlist, v1.1.0, Kotlin: tu anime organizado y el calendario de estrenos, sin cuenta" width="49%"></picture></a> <a href="https://askrueger.github.io/webportfolio/proyectos/bingogoals/"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/project-bingogoals-dark.svg"><img src="assets/project-bingogoals-light.svg" alt="BingoGoals, v0.1, Kotlin y TypeScript: tus metas convertidas en un cartón de bingo" width="49%"></picture></a>
+
+<sub>Código: [ExplorerSaga](https://github.com/AsKrueger/ExplorerSaga-Extremadura) · [3D Cost Manager](https://github.com/AsKrueger/Calculadora3D/tree/develop) · [Training Arc](https://github.com/AsKrueger/Training-Arc/tree/develop) · [AnimeWatchlist](https://github.com/AsKrueger/AnimeWatchlist) · [BingoGoals](https://github.com/AsKrueger/BingoGoals) ([demo web](https://askrueger.github.io/BingoGoals/)) &nbsp;|&nbsp; Más: [RadarTren](https://github.com/AsKrueger/RadarTren) · [Ahorrino](https://github.com/AsKrueger/Ahorrino)</sub>
+
+<br>
+
+## Un poco de código
+
+Sumar un margen al coste no basta: Etsy o Amazon cobran su comisión **sobre el total con IVA**, y el beneficio real sale menor del que crees. En [3D Cost Manager](https://askrueger.github.io/webportfolio/proyectos/3d-cost-manager/) el precio se despeja de la ecuación para que, tras el IVA y la comisión, quede exactamente el beneficio buscado, y la app avisa si no existe ningún precio que lo consiga.
+
+```kotlin
+/**
+ * Precio con IVA (lo que paga el cliente) tal que, tras quitar el IVA y la comisión del canal,
+ * queda el coste más el beneficio buscado:
+ *   bruto / (1 + iva) - bruto * comisión - fijo = coste + beneficio
+ */
+private fun price(cost: BigDecimal, pricing: Pricing, channel: ChannelFees,
+                  vatPercent: BigDecimal, rounding: PriceRounding): Priced {
+    val vat = vatPercent.nonNeg().div(HUNDRED)
+    val fee = channel.feePercent.nonNeg().div(HUNDRED)
+    val fixed = channel.fixedFee.nonNeg()
+    val netFactor = BigDecimal.ONE.div(BigDecimal.ONE + vat) - fee
+
+    val gross: BigDecimal
+    var feasible = true
+    when (pricing.mode) {
+        PricingMode.FIXED_PRICE -> gross = pricing.value.nonNeg()
+        PricingMode.MARKUP, PricingMode.TARGET_PROFIT -> {
+            val target = if (pricing.mode == PricingMode.MARKUP)
+                cost * pricing.value.nonNeg().div(HUNDRED) else pricing.value.nonNeg()
+            if (netFactor.signum() <= 0) {
+                // Comisión e IVA se comen todo el precio: no hay precio que dé beneficio
+                feasible = false
+                gross = zero()
+            } else {
+                gross = rounding.roundUp((cost + target + fixed).div(netFactor))
+            }
+        }
+    }
+
+    val vatAmount = gross - gross.div(BigDecimal.ONE + vat)
+    val fees = if (gross.signum() == 0) zero() else gross * fee + fixed
+    val profit = gross - vatAmount - fees - cost
+    return Priced(gross, vatAmount, fees, profit, feasible)
+}
+```
+
+<sub>[CostEngine.kt](https://github.com/AsKrueger/Calculadora3D/blob/develop/android/app/src/main/java/com/tdcostmanager/app/core/calc/CostEngine.kt#L100-L139) · Kotlin puro, sin Android, con `BigDecimal` a 8 decimales internos y redondeo `HALF_UP` a 4: con dinero, `double` acaba en céntimos que no cuadran.</sub>
+
+<details>
+<summary><b>Otro ejemplo: actualizar contenido sin romper nada</b> (ExplorerSaga)</summary>
+<br>
+
+La app solo instala un paquete de contenido nuevo si su esquema es compatible, si es más nuevo que el instalado y si el tamaño y el sha256 coinciden con el manifiesto. Un mutex evita que dos importaciones se pisen, y cualquier fallo de red deja el contenido anterior intacto.
+
+```kotlin
+suspend fun sync(): SyncResult = withContext(Dispatchers.IO) {
+    try {
+        val manifest = ContentImporter.json.decodeFromString<ContentManifest>(
+            download(baseUrl + MANIFEST).decodeToString()
+        )
+        if (manifest.schema != ContentImporter.SUPPORTED_SCHEMA) return@withContext SyncResult.UP_TO_DATE
+        if (manifest.version <= (dao.meta()?.version ?: 0)) return@withContext SyncResult.UP_TO_DATE
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:1E3A8A,100:2F80ED&height=200&section=header&text=Alonso%20Amador%20S%C3%A1nchez&fontSize=44&fontColor=ffffff&fontAlignY=38&desc=Junior%20Software%20Developer&descAlignY=58&descSize=20" alt="Header" width="100%"/>
+        val bytes = download(baseUrl + manifest.file)
+        if (bytes.size.toLong() != manifest.size || ContentImporter.sha256(bytes) != manifest.sha256) {
+            Log.w(TAG, "Paquete descartado: tamaño o hash no coinciden")
+            return@withContext SyncResult.FAILED
+        }
+        importMutex.withLock {
+            import(ContentImporter.readPack(ByteArrayInputStream(bytes)))
+        }
+        SyncResult.UPDATED
+    } catch (e: IOException) {
+        Log.w(TAG, "No se pudo actualizar el contenido", e)
+        SyncResult.FAILED
+    } catch (e: IllegalArgumentException) {
+        Log.w(TAG, "Paquete de contenido no válido", e)
+        SyncResult.FAILED
+    }
+}
+```
 
-![Typing](https://readme-typing-svg.demolab.com?font=Fira+Code&size=22&pause=1000&color=2F80ED&center=true&vCenter=true&width=700&lines=Backend+con+Java+%C2%B7+Spring+Boot;Full+stack+con+TypeScript;APIs+REST+%C2%B7+PostgreSQL+%C2%B7+Docker;Abierto+a+oportunidades+junior)
+<sub>[ContentRepository.kt](https://github.com/AsKrueger/ExplorerSaga-Extremadura/blob/main/app/src/main/java/com/alonso/explorersaga/data/content/ContentRepository.kt)</sub>
 
-<img src="https://komarev.com/ghpvc/?username=AsKrueger&label=Visitas+al+perfil&color=2F80ED&style=flat-square" alt="Visitas"/>
+</details>
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=flat-square&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/alonso-amador/) [![Portfolio](https://img.shields.io/badge/Portfolio-2F80ED?style=flat-square&logo=googlechrome&logoColor=white)](https://askrueger.github.io/webportfolio/)
+<br>
 
-</div>
+## Cómo trabajo
 
----
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/principles-dark.svg">
+  <img src="assets/principles-light.svg" alt="Cómo trabajo: dominio primero, sin conexión primero, tests de verdad y como en un equipo real, con issues, ramas, pull requests, CI y ADRs" width="100%">
+</picture>
 
-> ### 📌 En resumen
-> **Desarrollador junior** con formación en **DAM**. Backend con **Java y Spring Boot**, full stack con **TypeScript** (React, Angular, NestJS) y apps **Android** con Kotlin.
->
-> Busco mi **primer puesto como desarrollador junior**, con preferencia por backend.
->
-> 📍 Mérida, Extremadura · Presencial, híbrido o remoto · Disponibilidad inmediata
+<br>
 
----
+## Actividad
 
-## 👋 Sobre mí
+<a href="https://github.com/AsKrueger?tab=repositories&sort=pushed">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/activity-dark.svg">
+    <img src="assets/activity-light.svg" alt="Contribuciones en GitHub durante el último año y últimos commits" width="100%">
+  </picture>
+</a>
 
-Desarrollador de software junior con formación en **Desarrollo de
-Aplicaciones Multiplataforma** y experiencia práctica en desarrollo.
+<sub>Se actualiza cada día con una GitHub Action propia ([tools/build_assets.py](tools/build_assets.py)), sin servicios externos.</sub>
 
-- ⚙️ **Backend con Java y Spring Boot:** APIs, seguridad, persistencia y migraciones de base de datos.
-- 🗄️ **Bases de datos:** PostgreSQL, con migraciones (Flyway) y ORM (JPA, Prisma).
-- 🌐 **Full stack con TypeScript:** interfaces con React y Angular, y APIs con NestJS.
-- 🧪 **Testing:** tests unitarios, de integración y end-to-end en la mayoría de mis proyectos.
-- 🐳 **Entornos reproducibles:** Dockerfile y Docker Compose en varios repos.
-- 📱 **Móvil:** apps Android con Kotlin.
+<br>
 
----
+## Stack
 
-## 💼 Experiencia
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/stack-dark.svg">
+  <img src="assets/stack-light.svg" alt="Backend: Java 21, Spring Boot 3, Spring Security, JPA/Hibernate, Kafka, NestJS. Android: Kotlin, Jetpack Compose, Room, WorkManager, Retrofit, MapLibre. Datos: PostgreSQL, Flyway, Prisma, SQLite + FTS. Calidad: JUnit 5, Mockito, Testcontainers, Vitest, Playwright. DevOps: Docker, GitHub Actions, AWS, Gradle, Maven. Arquitectura: hexagonal, DDD táctico, MVVM, offline-first." width="100%">
+</picture>
 
-**Desarrollador de aplicaciones** · contrato de prácticas (sept 2025 – ene 2026)
+<br><br>
 
-Desarrollo de aplicaciones multiplataforma con C#, Unity y .NET.
+## Trayectoria
 
----
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/timeline-dark.svg">
+  <img src="assets/timeline-light.svg" alt="Grado en Turismo (2018–2024), atención al cliente en recepción de hotel (2022–2023), Técnico Superior en DAM (2023–2025), prácticas como desarrollador de aplicaciones (2025–2026) y apps propias en Google Play (2026–hoy)" width="100%">
+</picture>
 
-## 🚀 Proyectos destacados
+<sub>Español nativo · Inglés B1, con lectura técnica fluida · También C#, .NET, Unity y Python</sub>
 
-<table>
-<tr>
-<td width="50%" valign="top">
+<br><br>
 
-### [Calculadora3D](https://github.com/AsKrueger/Calculadora3D)
-
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white) ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white)
-
-Backend con Spring Web, JPA y Security · migraciones con Flyway · tests con JUnit · Dockerfile.
-
-</td>
-<td width="50%" valign="top">
-
-### [Cosplay-Journal](https://github.com/AsKrueger/Cosplay-Journal)
-
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL_16-4169E1?style=flat-square&logo=postgresql&logoColor=white) ![Docker](https://img.shields.io/badge/Docker_Compose-2496ED?style=flat-square&logo=docker&logoColor=white) ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white)
-
-Backend con Spring Security y JPA · documentación OpenAPI · tests con Testcontainers.
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-### [ExplorerSaga-Extremadura](https://github.com/AsKrueger/ExplorerSaga-Extremadura)
-
-![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) ![Kotlin](https://img.shields.io/badge/Kotlin-7F52FF?style=flat-square&logo=kotlin&logoColor=white) ![Compose](https://img.shields.io/badge/Jetpack_Compose-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white)
-
-App de turismo nativa. Tests unitarios e instrumentados.
-
-</td>
-<td width="50%" valign="top">
-
-### [PantryMind](https://github.com/AsKrueger/PantryMind)
-
-![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=flat-square&logo=nestjs&logoColor=white) ![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=flat-square&logo=prisma&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
-
-API con tests de integración y end-to-end (Vitest).
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-### [BingoGoals](https://github.com/AsKrueger/BingoGoals)
-
-![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black) ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white) ![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=flat-square&logo=nestjs&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
-
-Frontend y API, ambos con tests (Vitest).
-
-</td>
-<td width="50%" valign="top">
-
-### [Wayly](https://github.com/AsKrueger/Wayly)
-
-![Angular](https://img.shields.io/badge/Angular-DD0031?style=flat-square&logo=angular&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
-
-Tests con Jest y estrategia de testing documentada.
-
-</td>
-</tr>
-</table>
-
-<div align="center">
-
-Más repositorios en [mi perfil](https://github.com/AsKrueger?tab=repositories)
-
-</div>
-
----
-
-## 🛠️ Stack
-
-<div align="center">
-
-**Backend**
-
-<img src="https://skillicons.dev/icons?i=java,spring,docker,junit&perline=8" alt="Backend"/>
-
-**Frontend y Node**
-
-<img src="https://skillicons.dev/icons?i=typescript,react,angular,nodejs,nestjs,vite&perline=8" alt="Frontend y Node"/>
-
-**Datos**
-
-<img src="https://skillicons.dev/icons?i=postgres,prisma,mysql,sqlite&perline=8" alt="Datos"/>
-
-**Móvil y otros lenguajes**
-
-<img src="https://skillicons.dev/icons?i=kotlin,androidstudio,cs,dotnet,unity,python&perline=8" alt="Móvil y otros"/>
-
-**Herramientas**
-
-<img src="https://skillicons.dev/icons?i=git,github&perline=8" alt="Herramientas"/>
-
-</div>
-
----
-
-## 📊 GitHub
-
-<div align="center">
-
-<img height="180" src="https://github-readme-stats.vercel.app/api?username=AsKrueger&show_icons=true&theme=tokyonight&hide_border=true" alt="Estadísticas de GitHub"/>
-<img height="180" src="https://github-readme-stats.vercel.app/api/top-langs/?username=AsKrueger&layout=compact&langs_count=8&theme=tokyonight&hide_border=true" alt="Lenguajes más usados"/>
-
-</div>
-
----
-
-## 🎓 Formación
-
-- **Técnico Superior en Desarrollo de Aplicaciones Multiplataforma (DAM)** · 2023–2025
-
----
-
-## 📫 Contacto
-
-<div align="center">
-
-[![Email](https://img.shields.io/badge/Email-alonsoamadorsanchez%40gmail.com-EA4335?style=flat-square&logo=gmail&logoColor=white)](mailto:alonsoamadorsanchez@gmail.com)
-<!-- PENDIENTE: enlace al CV en PDF, si quieres incluirlo -->
-
-</div>
-
----
-
-<div align="center">
-
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:2F80ED,100:1E3A8A&height=100&section=footer" alt="Footer" width="100%"/>
-
-</div>
+<p align="center">
+  <b>¿Buscas un desarrollador junior que cuide los detalles?</b><br>
+  <a href="mailto:alonsoamadorsanchez@gmail.com">alonsoamadorsanchez@gmail.com</a> &nbsp;·&nbsp;
+  <a href="https://www.linkedin.com/in/alonso-amador/">LinkedIn</a> &nbsp;·&nbsp;
+  <a href="https://askrueger.github.io/webportfolio/">Portfolio</a>
+</p>

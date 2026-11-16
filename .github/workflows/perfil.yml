@@ -1,0 +1,48 @@
+name: Actualizar perfil
+
+# Regenera los SVG del README (actividad, últimos commits y la marca de "hoy"
+# de la trayectoria) cada día, y también al cambiar el generador.
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [tools/build_assets.py]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: perfil
+  cancel-in-progress: true
+
+jobs:
+  svgs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: pip install fonttools brotli
+
+      - name: Generar SVG
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python tools/build_assets.py
+
+      - name: Guardar cambios
+        run: |
+          git add assets
+          if git diff --cached --quiet; then
+            echo "Sin cambios"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Actualizar actividad del perfil"
+          git push
